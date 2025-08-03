@@ -91,3 +91,13 @@ angular/
 
 # Other projects
 blog-site/
+
+# Large files
+*.tar.gz
+supabase_cli
+*.dylib
+*.node
+
+# Build cache
+.next/
+*.pack
