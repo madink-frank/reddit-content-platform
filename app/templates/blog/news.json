@@ -1,0 +1,19 @@
+{
+  "name": "News Style",
+  "description": "News-style blog post template",
+  "variables": [
+    "title",
+    "generated_at[:10]",
+    "meta_description",
+    "keyword",
+    "trend_data.trend_direction",
+    "trend_data.total_posts",
+    "post.title",
+    "post.score",
+    "post.num_comments",
+    "post.content[:200]",
+    "kw.keyword",
+    "insight",
+    "generated_at"
+  ]
+}

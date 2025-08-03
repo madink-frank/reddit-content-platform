@@ -1,0 +1,26 @@
+{
+  "functions": {
+    "app/main.py": {
+      "runtime": "python3.9",
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/app/main.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/app/main.py"
+    }
+  ],
+  "env": {
+    "PYTHONPATH": "."
+  },
+  "build": {
+    "env": {
+      "PYTHONPATH": "."
+    }
+  }
+}

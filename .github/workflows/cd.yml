@@ -1,0 +1,327 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Build and push Docker images
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    permissions:
+      contents: read
+      packages: write
+      
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.production
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+        
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+        
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom
+        path: sbom.spdx.json
+
+  # Build and deploy frontend applications
+  build-frontend:
+    name: Build Frontend Applications
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      matrix:
+        app: [admin-dashboard, blog-site]
+        environment: [staging, production]
+        exclude:
+          - environment: production
+            app: admin-dashboard
+          - environment: production
+            app: blog-site
+        include:
+          - environment: production
+            app: admin-dashboard
+            condition: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+          - environment: production
+            app: blog-site
+            condition: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.app }}/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: ${{ matrix.app }}
+      run: npm ci --prefer-offline --no-audit
+      
+    - name: Set environment variables
+      run: |
+        if [ "${{ matrix.environment }}" = "staging" ]; then
+          echo "NODE_ENV=staging" >> $GITHUB_ENV
+          echo "ENVIRONMENT_SUFFIX=-staging" >> $GITHUB_ENV
+        elif [ "${{ matrix.environment }}" = "production" ]; then
+          echo "NODE_ENV=production" >> $GITHUB_ENV
+          echo "ENVIRONMENT_SUFFIX=" >> $GITHUB_ENV
+        fi
+        
+    - name: Build admin dashboard
+      if: matrix.app == 'admin-dashboard'
+      working-directory: admin-dashboard
+      run: |
+        if [ "${{ matrix.environment }}" = "staging" ]; then
+          npm run build:staging
+        elif [ "${{ matrix.environment }}" = "production" ]; then
+          npm run build:prod
+        fi
+      env:
+        VITE_API_BASE_URL: ${{ matrix.environment == 'staging' && 'https://staging-api.reddit-platform.com/api/v1' || 'https://api.reddit-platform.com/api/v1' }}
+        VITE_REDDIT_CLIENT_ID: ${{ secrets[format('REDDIT_CLIENT_ID_{0}', upper(matrix.environment))] }}
+        VITE_REDDIT_REDIRECT_URI: ${{ matrix.environment == 'staging' && 'https://staging-admin.reddit-platform.com/auth/callback' || 'https://admin.reddit-platform.com/auth/callback' }}
+        VITE_SENTRY_DSN: ${{ secrets[format('SENTRY_DSN_ADMIN_{0}', upper(matrix.environment))] }}
+        
+    - name: Build blog site
+      if: matrix.app == 'blog-site'
+      working-directory: blog-site
+      run: |
+        if [ "${{ matrix.environment }}" = "staging" ]; then
+          npm run build:staging
+        elif [ "${{ matrix.environment }}" = "production" ]; then
+          npm run build:prod
+        fi
+      env:
+        NEXT_PUBLIC_API_BASE_URL: ${{ matrix.environment == 'staging' && 'https://staging-api.reddit-platform.com/api/v1' || 'https://api.reddit-platform.com/api/v1' }}
+        NEXT_PUBLIC_SITE_URL: ${{ matrix.environment == 'staging' && 'https://staging-blog.reddit-platform.com' || 'https://blog.reddit-platform.com' }}
+        NEXT_PUBLIC_CDN_URL: ${{ matrix.environment == 'staging' && 'https://staging-cdn.reddit-platform.com' || 'https://cdn.reddit-platform.com' }}
+        NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ secrets[format('GOOGLE_ANALYTICS_ID_{0}', upper(matrix.environment))] }}
+        NEXT_PUBLIC_SENTRY_DSN: ${{ secrets[format('SENTRY_DSN_BLOG_{0}', upper(matrix.environment))] }}
+        
+    - name: Optimize build output
+      working-directory: ${{ matrix.app }}
+      run: |
+        # Compress static assets
+        find dist -name "*.js" -exec gzip -k {} \;
+        find dist -name "*.css" -exec gzip -k {} \;
+        find dist -name "*.html" -exec gzip -k {} \;
+        find dist -name "*.json" -exec gzip -k {} \;
+        find dist -name "*.svg" -exec gzip -k {} \;
+        
+        # Create Brotli compressed versions
+        find dist -name "*.js" -exec brotli -k {} \;
+        find dist -name "*.css" -exec brotli -k {} \;
+        find dist -name "*.html" -exec brotli -k {} \;
+        find dist -name "*.json" -exec brotli -k {} \;
+        find dist -name "*.svg" -exec brotli -k {} \;
+        
+        # Generate file manifest for cache busting
+        find dist -type f -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.jpg" -o -name "*.svg" | \
+        while read file; do
+          echo "$(basename "$file"): $(sha256sum "$file" | cut -d' ' -f1)"
+        done > dist/manifest.txt
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.app }}-${{ matrix.environment }}-build
+        path: ${{ matrix.app }}/dist/
+        retention-days: 30
+        compression-level: 9
+        
+    - name: Upload build analysis
+      if: matrix.environment == 'production'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.app }}-build-analysis
+        path: |
+          ${{ matrix.app }}/dist/stats.html
+          ${{ matrix.app }}/dist/bundle-analyzer-report.html
+        retention-days: 7
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-push, build-frontend]
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download frontend build
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-build
+        path: admin-dashboard/dist/
+        
+    - name: Deploy to Railway (Staging)
+      run: |
+        echo "Deploying to Railway staging environment..."
+        # Railway deployment would be configured here
+        # This is a placeholder for the actual deployment script
+        echo "IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}" >> $GITHUB_ENV
+        
+    - name: Run deployment health check
+      run: |
+        echo "Running health checks for staging deployment..."
+        # Add actual health check commands here
+        sleep 30
+        # curl -f https://staging-api.yourapp.com/health || exit 1
+        
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Staging deployment successful"
+        else
+          echo "❌ Staging deployment failed"
+        fi
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, build-frontend, deploy-staging]
+    if: |
+      (startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download frontend build
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-build
+        path: admin-dashboard/dist/
+        
+    - name: Deploy to Railway (Production)
+      run: |
+        echo "Deploying to Railway production environment..."
+        # Railway deployment would be configured here
+        echo "IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}" >> $GITHUB_ENV
+        
+    - name: Run deployment health check
+      run: |
+        echo "Running health checks for production deployment..."
+        sleep 30
+        # curl -f https://api.yourapp.com/health || exit 1
+        
+    - name: Create GitHub release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ## Changes in this Release
+          - Backend image: ${{ needs.build-and-push.outputs.image-tag }}
+          - Frontend build: Available in artifacts
+          
+          ## Deployment Information
+          - Deployed to production at: ${{ github.event.head_commit.timestamp }}
+          - Commit SHA: ${{ github.sha }}
+        draft: false
+        prerelease: false
+        
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Production deployment successful"
+        else
+          echo "❌ Production deployment failed"
+        fi
+
+  # Cleanup old images
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: always()
+    
+    steps:
+    - name: Delete old container images
+      uses: actions/delete-package-versions@v4
+      with:
+        package-name: ${{ env.IMAGE_NAME }}
+        package-type: 'container'
+        min-versions-to-keep: 10
+        delete-only-untagged-versions: true

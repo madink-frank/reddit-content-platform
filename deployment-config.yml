@@ -1,0 +1,223 @@
+# Frontend Deployment Configuration
+# This file defines deployment settings for different environments
+
+environments:
+  development:
+    admin_dashboard:
+      build_command: "npm run build:dev"
+      output_dir: "dist"
+      base_url: "http://localhost:5173"
+      api_url: "http://localhost:8000/api/v1"
+      cdn_enabled: false
+      compression: false
+      source_maps: true
+      
+    blog_site:
+      build_command: "npm run build:dev"
+      output_dir: ".next"
+      base_url: "http://localhost:3000"
+      api_url: "http://localhost:8000/api/v1"
+      cdn_enabled: false
+      compression: false
+      source_maps: true
+
+  staging:
+    admin_dashboard:
+      build_command: "npm run build:staging"
+      output_dir: "dist"
+      base_url: "https://staging-admin.reddit-platform.com"
+      api_url: "https://staging-api.reddit-platform.com/api/v1"
+      cdn_enabled: true
+      cdn_url: "https://staging-cdn.reddit-platform.com"
+      compression: true
+      source_maps: true
+      cache_ttl: 3600 # 1 hour
+      
+      # Deployment targets
+      targets:
+        - type: "netlify"
+          site_id: "${NETLIFY_SITE_ID_ADMIN_STAGING}"
+          build_hook: "${NETLIFY_BUILD_HOOK_ADMIN_STAGING}"
+        - type: "s3"
+          bucket: "${S3_BUCKET_ADMIN_STAGING}"
+          cloudfront_distribution: "${CLOUDFRONT_DISTRIBUTION_ID_ADMIN_STAGING}"
+          
+    blog_site:
+      build_command: "npm run build:staging"
+      output_dir: ".next"
+      base_url: "https://staging-blog.reddit-platform.com"
+      api_url: "https://staging-api.reddit-platform.com/api/v1"
+      cdn_enabled: true
+      cdn_url: "https://staging-cdn.reddit-platform.com"
+      compression: true
+      source_maps: true
+      cache_ttl: 3600 # 1 hour
+      
+      # Deployment targets
+      targets:
+        - type: "vercel"
+          project_id: "${VERCEL_PROJECT_ID_STAGING}"
+          team_id: "${VERCEL_TEAM_ID}"
+        - type: "s3"
+          bucket: "${S3_BUCKET_BLOG_STAGING}"
+          cloudfront_distribution: "${CLOUDFRONT_DISTRIBUTION_ID_BLOG_STAGING}"
+
+  production:
+    admin_dashboard:
+      build_command: "npm run build:prod"
+      output_dir: "dist"
+      base_url: "https://admin.reddit-platform.com"
+      api_url: "https://api.reddit-platform.com/api/v1"
+      cdn_enabled: true
+      cdn_url: "https://cdn.reddit-platform.com"
+      compression: true
+      source_maps: false # Disable source maps in production for security
+      cache_ttl: 31536000 # 1 year for static assets
+      
+      # Performance optimizations
+      optimizations:
+        - image_compression: true
+        - code_splitting: true
+        - tree_shaking: true
+        - minification: true
+        - gzip_compression: true
+        - brotli_compression: true
+        
+      # Security headers
+      security_headers:
+        - "X-Frame-Options: DENY"
+        - "X-Content-Type-Options: nosniff"
+        - "X-XSS-Protection: 1; mode=block"
+        - "Referrer-Policy: strict-origin-when-cross-origin"
+        - "Strict-Transport-Security: max-age=31536000; includeSubDomains"
+        
+      # Deployment targets
+      targets:
+        - type: "netlify"
+          site_id: "${NETLIFY_SITE_ID_ADMIN_PRODUCTION}"
+          build_hook: "${NETLIFY_BUILD_HOOK_ADMIN_PRODUCTION}"
+        - type: "s3"
+          bucket: "${S3_BUCKET_ADMIN_PRODUCTION}"
+          cloudfront_distribution: "${CLOUDFRONT_DISTRIBUTION_ID_ADMIN_PRODUCTION}"
+          
+    blog_site:
+      build_command: "npm run build:prod"
+      output_dir: ".next"
+      base_url: "https://blog.reddit-platform.com"
+      api_url: "https://api.reddit-platform.com/api/v1"
+      cdn_enabled: true
+      cdn_url: "https://cdn.reddit-platform.com"
+      compression: true
+      source_maps: false # Disable source maps in production for security
+      cache_ttl: 31536000 # 1 year for static assets
+      
+      # Performance optimizations
+      optimizations:
+        - image_compression: true
+        - code_splitting: true
+        - tree_shaking: true
+        - minification: true
+        - gzip_compression: true
+        - brotli_compression: true
+        - isr_enabled: true # Incremental Static Regeneration
+        
+      # Security headers
+      security_headers:
+        - "X-Frame-Options: DENY"
+        - "X-Content-Type-Options: nosniff"
+        - "X-XSS-Protection: 1; mode=block"
+        - "Referrer-Policy: strict-origin-when-cross-origin"
+        - "Strict-Transport-Security: max-age=31536000; includeSubDomains"
+        
+      # Deployment targets
+      targets:
+        - type: "vercel"
+          project_id: "${VERCEL_PROJECT_ID_PRODUCTION}"
+          team_id: "${VERCEL_TEAM_ID}"
+        - type: "s3"
+          bucket: "${S3_BUCKET_BLOG_PRODUCTION}"
+          cloudfront_distribution: "${CLOUDFRONT_DISTRIBUTION_ID_BLOG_PRODUCTION}"
+
+# CDN Configuration
+cdn:
+  providers:
+    cloudflare:
+      zone_id: "${CLOUDFLARE_ZONE_ID}"
+      api_token: "${CLOUDFLARE_API_TOKEN}"
+      cache_rules:
+        - pattern: "*.js"
+          ttl: 31536000 # 1 year
+          browser_ttl: 31536000
+        - pattern: "*.css"
+          ttl: 31536000 # 1 year
+          browser_ttl: 31536000
+        - pattern: "*.png|*.jpg|*.jpeg|*.gif|*.svg|*.webp"
+          ttl: 31536000 # 1 year
+          browser_ttl: 31536000
+        - pattern: "*.html"
+          ttl: 3600 # 1 hour
+          browser_ttl: 3600
+          
+    aws_cloudfront:
+      distributions:
+        admin_staging: "${CLOUDFRONT_DISTRIBUTION_ID_ADMIN_STAGING}"
+        admin_production: "${CLOUDFRONT_DISTRIBUTION_ID_ADMIN_PRODUCTION}"
+        blog_staging: "${CLOUDFRONT_DISTRIBUTION_ID_BLOG_STAGING}"
+        blog_production: "${CLOUDFRONT_DISTRIBUTION_ID_BLOG_PRODUCTION}"
+      cache_behaviors:
+        - path_pattern: "*.js"
+          ttl: 31536000
+          compress: true
+        - path_pattern: "*.css"
+          ttl: 31536000
+          compress: true
+        - path_pattern: "*.png|*.jpg|*.jpeg|*.gif|*.svg|*.webp"
+          ttl: 31536000
+          compress: false
+        - path_pattern: "*.html"
+          ttl: 3600
+          compress: true
+
+# Performance monitoring
+monitoring:
+  lighthouse:
+    enabled: true
+    thresholds:
+      performance: 80
+      accessibility: 90
+      best_practices: 80
+      seo: 80
+    urls:
+      admin_dashboard:
+        - "/"
+        - "/dashboard"
+        - "/keywords"
+        - "/analytics"
+      blog_site:
+        - "/"
+        - "/posts"
+        - "/categories"
+        - "/search"
+        
+  web_vitals:
+    enabled: true
+    thresholds:
+      fcp: 1800 # First Contentful Paint (ms)
+      lcp: 2500 # Largest Contentful Paint (ms)
+      fid: 100  # First Input Delay (ms)
+      cls: 0.1  # Cumulative Layout Shift
+      ttfb: 600 # Time to First Byte (ms)
+      
+  bundle_analysis:
+    enabled: true
+    max_bundle_size: 1048576 # 1MB
+    max_chunk_size: 262144  # 256KB
+    
+# Rollback configuration
+rollback:
+  enabled: true
+  keep_versions: 5
+  automatic_rollback:
+    enabled: true
+    error_threshold: 5 # Number of errors before automatic rollback
+    time_window: 300   # Time window in seconds to count errors

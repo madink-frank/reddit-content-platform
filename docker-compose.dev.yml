@@ -1,0 +1,194 @@
+version: '3.8'
+
+services:
+  # FastAPI Application - Development
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://reddit_user:reddit_pass@db:5432/reddit_platform_dev
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-demo_client_id}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-demo_client_secret}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-not-for-production}
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - LOG_SQL_QUERIES=true
+      - LOG_REQUEST_DETAILS=true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - reddit_network
+
+  # Celery Worker - Development
+  worker:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app worker --loglevel=debug --concurrency=2 --pool=solo
+    environment:
+      - DATABASE_URL=postgresql://reddit_user:reddit_pass@db:5432/reddit_platform_dev
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-demo_client_id}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-demo_client_secret}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-not-for-production}
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.core.celery_app", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - reddit_network
+
+  # Celery Beat Scheduler - Development
+  scheduler:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app beat --loglevel=debug
+    environment:
+      - DATABASE_URL=postgresql://reddit_user:reddit_pass@db:5432/reddit_platform_dev
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-demo_client_id}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-demo_client_secret}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-not-for-production}
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    restart: unless-stopped
+    networks:
+      - reddit_network
+
+  # PostgreSQL Database - Development
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=reddit_platform_dev
+      - POSTGRES_USER=reddit_user
+      - POSTGRES_PASSWORD=reddit_pass
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reddit_user -d reddit_platform_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - reddit_network
+
+  # Redis Cache and Message Broker - Development
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    networks:
+      - reddit_network
+
+  # Prometheus for metrics collection - Development
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_dev_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=24h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    networks:
+      - reddit_network
+
+  # Grafana for metrics visualization - Development
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    networks:
+      - reddit_network
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+  prometheus_dev_data:
+  grafana_dev_data:
+
+networks:
+  reddit_network:
+    driver: bridge
+    name: reddit_platform_dev_network

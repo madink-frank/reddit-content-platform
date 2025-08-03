@@ -1,0 +1,1441 @@
+{
+  "info": {
+    "_postman_id": "reddit-content-platform-api",
+    "name": "Reddit Content Platform API",
+    "description": "Complete API collection for Reddit Content Crawling and Trend Analysis Platform\n\n## Version Information\n- **API Version**: 1.0.0\n- **Generated**: 2025-08-03T04:28:40.260772Z\n- **Base URL**: {{base_url}}\n\n## Authentication\n\nThis API uses Reddit OAuth2 for authentication and JWT tokens for authorization.\n\n### Setup Instructions\n\n1. **Environment Variables**: Set up the following variables in your Postman environment:\n   - `base_url`: Your API base URL (e.g., `http://localhost:8000` or `https://your-domain.com`)\n   - `access_token`: JWT access token (will be set automatically after login)\n   - `refresh_token`: JWT refresh token (will be set automatically after login)\n\n2. **Authentication Flow**:\n   - Use the \"Initiate Login\" request to start OAuth2 flow\n   - Complete Reddit authorization in browser\n   - Use \"Login with Code\" or callback to get tokens\n   - Tokens will be automatically set in environment variables\n\n3. **Token Management**:\n   - Access tokens expire in 15 minutes\n   - Use \"Refresh Token\" request to get new access tokens\n   - Refresh tokens are valid for 7 days\n\n### Rate Limits\n\n- General API: 60 requests per minute per user\n- Reddit API: 60 requests per minute (shared across all users)\n- Content Generation: 10 requests per hour per user\n- Public Blog API: 100 requests per minute per IP (no auth required)\n\n### Error Handling\n\nAll endpoints return consistent error responses with the following structure:\n\n```json\n{\n  \"error_code\": \"error_type\",\n  \"message\": \"Human readable error message\",\n  \"details\": {\"field_name\": [\"Specific validation errors\"]},\n  \"timestamp\": \"2024-01-01T00:00:00Z\",\n  \"request_id\": \"uuid-v4-string\"\n}\n```\n\n### API Versioning\n\nThis API uses URL path versioning:\n- **Current Version**: `/api/v1/`\n- **Version Header**: `Accept: application/vnd.reddit-platform.v1+json` (optional)\n- **Custom Header**: `X-API-Version: v1` (alternative)\n\n### Best Practices\n\n1. **Authentication**:\n   - Store tokens securely\n   - Implement automatic token refresh\n   - Handle token expiration gracefully\n   - Use HTTPS in production\n\n2. **API Usage**:\n   - Use pagination for large datasets\n   - Implement exponential backoff for retries\n   - Cache responses when appropriate\n   - Monitor rate limits\n   - Use specific error handling for different status codes\n\n3. **Performance**:\n   - Use bulk operations when available\n   - Filter results at the API level\n   - Use async/await for concurrent requests\n   - Implement request timeouts\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Reddit OAuth2 authentication and JWT token management endpoints",
+      "item": [
+        {
+          "name": "Initiate Login",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Start the Reddit OAuth2 authentication flow. This will redirect to Reddit's authorization page."
+          },
+          "response": []
+        },
+        {
+          "name": "Login with Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Automatically set tokens in environment variables",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.access_token);",
+                  "    pm.environment.set('refresh_token', response.refresh_token);",
+                  "    console.log('Tokens set successfully');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"your_authorization_code_here\",\n  \"state\": \"your_state_parameter_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Exchange authorization code for JWT tokens. Replace the code and state with values from Reddit OAuth2 callback."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Automatically update access token",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.access_token);",
+                  "    console.log('Access token refreshed successfully');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{refresh_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Get a new access token using the refresh token."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Get information about the currently authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auth Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "status"
+              ]
+            },
+            "description": "Check authentication status and get basic user information."
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/validate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "validate"
+              ]
+            },
+            "description": "Validate the current JWT token and get token information."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Logout the current user by blacklisting the access token."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Keywords",
+      "description": "Keyword management for tracking specific topics on Reddit",
+      "item": [
+        {
+          "name": "Create Keyword",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword\": \"artificial intelligence\",\n  \"description\": \"Track AI-related discussions and trends\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords"
+              ]
+            },
+            "description": "Create a new keyword for tracking Reddit content."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Keywords",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords?page=1&page_size=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "",
+                  "description": "Search query for keyword text or description",
+                  "disabled": true
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "description": "Filter by active status (true/false)",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20",
+                  "description": "Number of items per page (max 100)"
+                }
+              ]
+            },
+            "description": "Get user's keywords with optional search and pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Keyword by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "1"
+              ]
+            },
+            "description": "Get a specific keyword by its ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Keyword",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword\": \"machine learning\",\n  \"description\": \"Updated description for ML topics\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "1"
+              ]
+            },
+            "description": "Update an existing keyword."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Keyword",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "1"
+              ]
+            },
+            "description": "Delete a keyword and all associated data."
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Keyword",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/validate?keyword_text=artificial intelligence",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "validate"
+              ],
+              "query": [
+                {
+                  "key": "keyword_text",
+                  "value": "artificial intelligence",
+                  "description": "Keyword text to validate"
+                }
+              ]
+            },
+            "description": "Validate a keyword before creation."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Create Keywords",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keywords\": [\n    {\n      \"keyword\": \"blockchain\",\n      \"description\": \"Cryptocurrency and blockchain discussions\"\n    },\n    {\n      \"keyword\": \"web3\",\n      \"description\": \"Web3 and decentralized technologies\"\n    },\n    {\n      \"keyword\": \"NFT\",\n      \"description\": \"Non-fungible tokens and digital art\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/bulk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "bulk"
+              ]
+            },
+            "description": "Create multiple keywords in bulk (max 50 per request)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Keyword Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/1/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "1",
+                "stats"
+              ]
+            },
+            "description": "Get detailed statistics for a keyword."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Keyword Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/me/count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "me",
+                "count"
+              ]
+            },
+            "description": "Get total number of keywords for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Keywords",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keywords/me/active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "keywords",
+                "me",
+                "active"
+              ]
+            },
+            "description": "Get all active keywords for the current user."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Crawling",
+      "description": "Reddit content crawling operations and status monitoring",
+      "item": [
+        {
+          "name": "Start Crawling",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword_ids\": [1, 2, 3],\n  \"subreddits\": [\"MachineLearning\", \"artificial\", \"technology\"],\n  \"limit\": 100,\n  \"time_filter\": \"week\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/crawl",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crawl"
+              ]
+            },
+            "description": "Start a new crawling job for specified keywords and subreddits."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Crawling Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/crawl/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crawl",
+                "status"
+              ]
+            },
+            "description": "Get the current status of crawling operations."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Crawling History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/crawl/history?page=1&page_size=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crawl",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20",
+                  "description": "Number of items per page"
+                }
+              ]
+            },
+            "description": "Get history of past crawling operations."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "description": "Search and retrieve crawled Reddit posts with filtering options",
+      "item": [
+        {
+          "name": "Search Posts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/posts?page=1&page_size=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "posts"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "",
+                  "description": "Search query for post title or content",
+                  "disabled": true
+                },
+                {
+                  "key": "keyword_ids",
+                  "value": "",
+                  "description": "Comma-separated keyword IDs to filter by",
+                  "disabled": true
+                },
+                {
+                  "key": "subreddits",
+                  "value": "",
+                  "description": "Comma-separated subreddit names",
+                  "disabled": true
+                },
+                {
+                  "key": "date_from",
+                  "value": "",
+                  "description": "Start date (ISO format)",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "",
+                  "description": "End date (ISO format)",
+                  "disabled": true
+                },
+                {
+                  "key": "min_score",
+                  "value": "",
+                  "description": "Minimum post score",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20",
+                  "description": "Number of items per page"
+                }
+              ]
+            },
+            "description": "Search and filter Reddit posts with various criteria."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Post by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/posts/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "posts",
+                "1"
+              ]
+            },
+            "description": "Get detailed information about a specific post including comments."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trending Posts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/posts/trending?limit=50&time_period=24h",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "posts",
+                "trending"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Number of trending posts to return"
+                },
+                {
+                  "key": "time_period",
+                  "value": "24h",
+                  "description": "Time period for trending calculation (1h, 6h, 24h, 7d)"
+                }
+              ]
+            },
+            "description": "Get currently trending posts based on score and engagement."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "description": "Trend analysis and statistics from collected Reddit data",
+      "item": [
+        {
+          "name": "Get Trend Analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/analytics/trends?time_period=7d&keyword_ids=1,2,3",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "trends"
+              ],
+              "query": [
+                {
+                  "key": "time_period",
+                  "value": "7d",
+                  "description": "Time period for analysis (1d, 7d, 30d)"
+                },
+                {
+                  "key": "keyword_ids",
+                  "value": "1,2,3",
+                  "description": "Comma-separated keyword IDs"
+                }
+              ]
+            },
+            "description": "Get trend analysis for specified keywords and time period."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Keyword Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/analytics/keywords/1/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "keywords",
+                "1",
+                "stats"
+              ]
+            },
+            "description": "Get detailed statistics for a specific keyword."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dashboard Data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/analytics/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "Get comprehensive dashboard data including trends, top posts, and statistics."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Content Generation",
+      "description": "AI-powered content generation based on analyzed data",
+      "item": [
+        {
+          "name": "Generate Content",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content_type\": \"blog_post\",\n  \"keyword_ids\": [1, 2],\n  \"template_id\": 1,\n  \"custom_prompt\": \"Write a comprehensive blog post about recent AI trends\",\n  \"date_from\": \"2024-01-01T00:00:00Z\",\n  \"date_to\": \"2024-01-31T23:59:59Z\",\n  \"async_mode\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/generate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "generate"
+              ]
+            },
+            "description": "Generate content based on Reddit data and specified parameters."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Batch Content",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content_requests\": [\n    {\n      \"content_type\": \"blog_post\",\n      \"keyword_ids\": [1],\n      \"template_id\": 1\n    },\n    {\n      \"content_type\": \"product_intro\",\n      \"keyword_ids\": [2],\n      \"template_id\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/generate/batch",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "generate",
+                "batch"
+              ]
+            },
+            "description": "Generate multiple pieces of content in batch (max 10 per request)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Task Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/tasks/task_id_here/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "tasks",
+                "task_id_here",
+                "status"
+              ]
+            },
+            "description": "Get the status of a content generation task."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/tasks/task_id_here",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "tasks",
+                "task_id_here"
+              ]
+            },
+            "description": "Cancel a running content generation task."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/tasks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "tasks"
+              ]
+            },
+            "description": "Get list of active content generation tasks for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Generated Content",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content?limit=20&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content"
+              ],
+              "query": [
+                {
+                  "key": "content_type",
+                  "value": "",
+                  "description": "Filter by content type",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of items to return"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Number of items to skip"
+                }
+              ]
+            },
+            "description": "Get list of generated content for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Content by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "1"
+              ]
+            },
+            "description": "Get a specific piece of generated content by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Content",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "1"
+              ]
+            },
+            "description": "Delete a piece of generated content."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Content Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/stats/overview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "stats",
+                "overview"
+              ]
+            },
+            "description": "Get content generation statistics for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Available Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/templates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "templates"
+              ]
+            },
+            "description": "Get list of available content generation templates."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Worker Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/worker/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "worker",
+                "stats"
+              ]
+            },
+            "description": "Get Celery worker statistics for content generation."
+          },
+          "response": []
+        },
+        {
+          "name": "Schedule Content Generation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content_type\": \"blog_post\",\n  \"keyword_ids\": [1, 2],\n  \"schedule_config\": {\n    \"type\": \"recurring\",\n    \"frequency\": \"weekly\",\n    \"day_of_week\": \"monday\",\n    \"time\": \"09:00\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/content/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "content",
+                "schedule"
+              ]
+            },
+            "description": "Schedule content generation for future execution."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "description": "System health monitoring and metrics",
+      "item": [
+        {
+          "name": "Basic Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Basic health check endpoint that returns service status."
+          },
+          "response": []
+        },
+        {
+          "name": "Detailed Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/health/detailed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "detailed"
+              ]
+            },
+            "description": "Comprehensive health check that verifies all system components."
+          },
+          "response": []
+        },
+        {
+          "name": "Service Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/health/database",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "database"
+              ]
+            },
+            "description": "Check the health status of a specific service (database, redis, celery)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Get Prometheus-formatted metrics for system monitoring."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Check if access token is expired and refresh if needed",
+          "const accessToken = pm.environment.get('access_token');",
+          "const refreshToken = pm.environment.get('refresh_token');",
+          "",
+          "if (accessToken && refreshToken) {",
+          "    // Decode JWT to check expiration (simplified check)",
+          "    try {",
+          "        const payload = JSON.parse(atob(accessToken.split('.')[1]));",
+          "        const now = Math.floor(Date.now() / 1000);",
+          "        ",
+          "        // If token expires in less than 5 minutes, refresh it",
+          "        if (payload.exp && payload.exp - now < 300) {",
+          "            console.log('Access token expiring soon, refreshing...');",
+          "            // Note: Automatic refresh would require additional setup",
+          "            console.log('Please use the Refresh Token request manually');",
+          "        }",
+          "    } catch (e) {",
+          "        console.log('Could not decode access token');",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script for error handling",
+          "if (pm.response.code >= 400) {",
+          "    const response = pm.response.json();",
+          "    console.log('API Error:', response);",
+          "    ",
+          "    if (pm.response.code === 401) {",
+          "        console.log('Authentication required. Please check your access token.');",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string",
+      "description": "Base URL for the API (set in environment)"
+    }
+  ]
+}

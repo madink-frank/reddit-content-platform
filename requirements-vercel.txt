@@ -1,0 +1,21 @@
+# Vercel 서버리스 함수용 최소 의존성
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+sqlalchemy==2.0.23
+alembic==1.13.1
+psycopg2-binary==2.9.9
+redis==5.0.1
+httpx==0.25.2
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+jinja2==3.1.2
+prometheus-client==0.19.0
+
+# Reddit API
+praw==7.7.1
+
+# 서버리스 환경에서 Celery 대체
+# 백그라운드 작업은 별도 Edge Functions나 Vercel Cron으로 처리

@@ -1,0 +1,22 @@
+{
+  "name": "Default Blog Post",
+  "description": "Standard blog post template with trend analysis",
+  "variables": [
+    "title",
+    "meta_description",
+    "keyword",
+    "trend_data.trend_direction",
+    "trend_data.total_posts",
+    "trend_data.analyzed_at[:10]",
+    "kw.keyword",
+    "post.title",
+    "post.score",
+    "post.num_comments",
+    "post.author",
+    "post.content[:300]",
+    "post.url",
+    "insight",
+    "conclusion or \"The analysis of Reddit discussions around '\" + keyword + \"' reveals valuable insights into community sentiment and trending topics. This data can help inform content strategy and community engagement efforts.\"",
+    "generated_at"
+  ]
+}

@@ -1,0 +1,46 @@
+# Vercel 환경 변수 설정 명령어들
+# 이 명령어들을 하나씩 실행하세요
+
+# 기본 Supabase 설정
+vercel env add SUPABASE_URL production
+# 값: https://kyseetrtvhvddkdlcsbm.supabase.co
+
+vercel env add SUPABASE_ANON_KEY production
+# 값: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5c2VldHJ0dmh2ZGRrZGxjc2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMDA1MjAsImV4cCI6MjA2OTc3NjUyMH0.UUUa2iJJIRJPPR1w5DBV6QiVr24WqBOcpbpUTh2Ae6M
+
+vercel env add SUPABASE_SERVICE_ROLE_KEY production
+# 값: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5c2VldHJ0dmh2ZGRrZGxjc2JtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDIwMDUyMCwiZXhwIjoyMDY5Nzc2NTIwfQ.wWssxFL3OkCUl07xgFBi3DEDkd9XuX_dIf_LHFAdtxE
+
+# 데이터베이스 URL (비밀번호 입력 필요)
+vercel env add DATABASE_URL production
+# 값: postgresql://postgres:[YOUR-DB-PASSWORD]@db.kyseetrtvhvddkdlcsbm.supabase.co:5432/postgres
+
+# JWT 보안 키
+vercel env add JWT_SECRET_KEY production
+# 값: 8vN2pQ7mK9xR4tY6wE3rT5uI8oP1aS2dF7gH0jK3lM9nB6vC4xZ1qW5eR8tY2uI7
+
+# 기본 설정들
+vercel env add PROJECT_NAME production
+# 값: Reddit Content Platform
+
+vercel env add API_V1_STR production
+# 값: /api/v1
+
+vercel env add ENVIRONMENT production
+# 값: production
+
+vercel env add SERVERLESS production
+# 값: true
+
+vercel env add DISABLE_CELERY production
+# 값: true
+
+# Reddit API (나중에 실제 값으로 교체)
+vercel env add REDDIT_CLIENT_ID production
+# 값: demo_client_id
+
+vercel env add REDDIT_CLIENT_SECRET production
+# 값: demo_client_secret
+
+vercel env add REDDIT_USER_AGENT production
+# 값: RedditContentPlatform/1.0

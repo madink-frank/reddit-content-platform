@@ -1,0 +1,155 @@
+# Prometheus alerting rules for Reddit Content Platform
+groups:
+  - name: reddit_content_platform_alerts
+    rules:
+      # API Health Alerts
+      - alert: APIHighErrorRate
+        expr: rate(api_requests_total{status_code=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API error rate detected"
+          description: "API error rate is {{ $value }} errors per second for endpoint {{ $labels.endpoint }}"
+
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, rate(api_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s for endpoint {{ $labels.endpoint }}"
+
+      # Celery Task Alerts
+      - alert: CeleryTaskFailureRate
+        expr: rate(celery_tasks_total{status="failure"}[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Celery task failure rate"
+          description: "Task {{ $labels.task_name }} failure rate is {{ $value }} failures per second"
+
+      - alert: CeleryQueueBacklog
+        expr: celery_active_tasks > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery queue backlog detected"
+          description: "Queue {{ $labels.queue }} has {{ $value }} active tasks"
+
+      # Reddit API Alerts
+      - alert: RedditAPIFailureRate
+        expr: rate(reddit_api_calls_total{status="failure"}[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Reddit API failure rate"
+          description: "Reddit API {{ $labels.endpoint }} failure rate is {{ $value }} failures per second"
+
+      - alert: RedditAPIRateLimit
+        expr: reddit_api_rate_limit_remaining < 10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Reddit API rate limit nearly exhausted"
+          description: "Only {{ $value }} Reddit API calls remaining"
+
+      # Database Alerts
+      - alert: DatabaseConnectionFailures
+        expr: rate(database_connections_total{status="failure"}[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection failures detected"
+          description: "Database connection failure rate is {{ $value }} failures per second"
+
+      - alert: DatabaseSlowQueries
+        expr: histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query time is {{ $value }}s for operation {{ $labels.operation }}"
+
+      # Redis Alerts
+      - alert: RedisConnectionFailures
+        expr: rate(redis_operations_total{status="failure"}[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis connection failures detected"
+          description: "Redis operation {{ $labels.operation }} failure rate is {{ $value }} failures per second"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_usage_bytes > 1000000000  # 1GB
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis is using {{ $value | humanize1024 }}B of memory"
+
+      # System Resource Alerts
+      - alert: HighCPUUsage
+        expr: system_cpu_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: system_memory_usage_bytes / (1024*1024*1024) > 7  # 7GB
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanize1024 }}B"
+
+      - alert: HighDiskUsage
+        expr: system_disk_usage_bytes / (1024*1024*1024*1024) > 0.8  # 80% of 1TB
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage detected"
+          description: "Disk usage for {{ $labels.path }} is {{ $value | humanize1024 }}B"
+
+      # Business Logic Alerts
+      - alert: LowCrawlingSuccessRate
+        expr: crawling_success_rate < 80
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low crawling success rate"
+          description: "Crawling success rate for keyword {{ $labels.keyword }} is {{ $value }}%"
+
+      - alert: NoContentGenerated
+        expr: increase(content_generated_total{status="success"}[1h]) == 0
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "No content generated recently"
+          description: "No successful content generation in the last hour"
+
+      # Error Rate Alerts
+      - alert: HighErrorRate
+        expr: rate(errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate for {{ $labels.component }} is {{ $value }} errors per second ({{ $labels.error_type }})"

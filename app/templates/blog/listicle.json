@@ -1,0 +1,21 @@
+{
+  "name": "Listicle Style",
+  "description": "List-based blog post template",
+  "variables": [
+    "title",
+    "meta_description",
+    "trend_data.total_posts",
+    "keyword",
+    "loop.index",
+    "post.title",
+    "post.score",
+    "post.num_comments",
+    "post.author",
+    "post.content[:250]",
+    "post.url",
+    "kw.keyword",
+    "trend_data.trend_direction",
+    "conclusion or \"These Reddit discussions show the diverse perspectives and active engagement around \" + keyword + \". The community's \" + trend_data.trend_direction + \" interest suggests this topic will continue to generate discussion.\"",
+    "generated_at[:10]"
+  ]
+}
