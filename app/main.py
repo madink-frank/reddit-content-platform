@@ -19,7 +19,7 @@ app = FastAPI(
 async def root():
     """Phase 1 - 기본 루트 엔드포인트"""
     return {
-        "message": "🎉 Phase 1 배포 성공!",
+        "message": "🎉 Phase 1 배포 성공! (v2)",
         "status": "working",
         "phase": "1 - Minimal App",
         "timestamp": datetime.utcnow().isoformat(),
