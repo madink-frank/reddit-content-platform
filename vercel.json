@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "app/main.py",
+      "src": "app/main_new.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb"
@@ -12,14 +12,14 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app/main.py"
+      "dest": "app/main_new.py"
     }
   ],
   "env": {
     "PYTHONPATH": "."
   },
   "functions": {
-    "app/main.py": {
+    "app/main_new.py": {
       "maxDuration": 30
     }
   },
