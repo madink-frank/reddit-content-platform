@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "app/main_simple.py",
+      "src": "app/main_minimal.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb"
@@ -12,15 +12,16 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app/main_simple.py"
+      "dest": "app/main_minimal.py"
     }
   ],
   "env": {
     "PYTHONPATH": "."
   },
   "functions": {
-    "app/main_simple.py": {
+    "app/main_minimal.py": {
       "maxDuration": 30
     }
-  }
+  },
+  "installCommand": "pip install -r requirements_ultra_minimal.txt"
 }
