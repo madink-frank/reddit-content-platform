@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "app/main_minimal.py",
+      "src": "app/main_ultra_minimal.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb"
@@ -12,14 +12,14 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app/main_minimal.py"
+      "dest": "app/main_ultra_minimal.py"
     }
   ],
   "env": {
     "PYTHONPATH": "."
   },
   "functions": {
-    "app/main_minimal.py": {
+    "app/main_ultra_minimal.py": {
       "maxDuration": 30
     }
   },
