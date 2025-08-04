@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "phase3.py",
+      "src": "phase4.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb"
@@ -12,16 +12,16 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "phase3.py"
+      "dest": "phase4.py"
     }
   ],
   "env": {
     "PYTHONPATH": "."
   },
   "functions": {
-    "phase3.py": {
+    "phase4.py": {
       "maxDuration": 30
     }
   },
-  "installCommand": "pip install -r requirements_ultra_minimal.txt"
+  "installCommand": "pip install -r requirements_phase4.txt"
 }
